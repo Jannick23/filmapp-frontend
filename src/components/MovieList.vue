@@ -1,34 +1,12 @@
 <script setup>
-const movies = [
-  {
-    id: 1,
-    title: "Inception",
-    genre: "Sci-Fi",
-    releaseYear: 2010,
-    status: "WATCHED"
-  },
-  {
-    id: 2,
-    title: "The Dark Knight",
-    genre: "Action",
-    releaseYear: 2008,
-    status: "WATCHED"
-  },
-  {
-    id: 3,
-    title: "Interstellar",
-    genre: "Sci-Fi",
-    releaseYear: 2014,
-    status: "WATCHLIST"
-  },
-  {
-    id: 4,
-    title: "Parasite",
-    genre: "Thriller",
-    releaseYear: 2019,
-    status: "WATCHLIST"
-  }
-]
+import { ref, onMounted } from 'vue'
+
+const movies = ref([])
+
+onMounted(async () => {
+  const response = await fetch('http://localhost:8080/movies')
+  movies.value = await response.json()
+})
 </script>
 
 <template>
