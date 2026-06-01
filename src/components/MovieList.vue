@@ -11,7 +11,7 @@ const newMovie = ref({
 })
 
 const baseUrl =
-  import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:8081'
+  import.meta.env.VITE_BACKEND_BASE_URL
 
 async function loadMovies() {
   const response = await fetch(`${baseUrl}/movies`)
