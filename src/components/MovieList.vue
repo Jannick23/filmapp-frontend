@@ -13,32 +13,51 @@ const newMovie = ref({
 const baseUrl = import.meta.env.VITE_BACKEND_BASE_URL
 
 async function loadMovies() {
-  const response = await fetch(`${baseUrl}/movies`)
-  movies.value = await response.json()
+  try {
+    const response = await fetch(`${baseUrl}/movies`)
+
+    if (!response.ok) {
+      throw new Error('Fehler beim Laden der Filme')
+    }
+
+    movies.value = await response.json()
+  } catch (error) {
+    console.error(error)
+    alert('Backend nicht erreichbar.')
+  }
 }
 
 async function addMovie() {
-  await fetch(`${baseUrl}/movies`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      title: newMovie.value.title,
-      genre: newMovie.value.genre,
-      releaseYear: Number(newMovie.value.releaseYear),
-      status: newMovie.value.status
+  try {
+    const response = await fetch(`${baseUrl}/movies`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: newMovie.value.title,
+        genre: newMovie.value.genre,
+        releaseYear: Number(newMovie.value.releaseYear),
+        status: newMovie.value.status
+      })
     })
-  })
 
-  newMovie.value = {
-    title: '',
-    genre: '',
-    releaseYear: '',
-    status: ''
+    if (!response.ok) {
+      throw new Error('Fehler beim Speichern')
+    }
+
+    newMovie.value = {
+      title: '',
+      genre: '',
+      releaseYear: '',
+      status: ''
+    }
+
+    await loadMovies()
+  } catch (error) {
+    console.error(error)
+    alert('Film konnte nicht gespeichert werden.')
   }
-
-  await loadMovies()
 }
 
 onMounted(loadMovies)
@@ -46,6 +65,8 @@ onMounted(loadMovies)
 
 <template>
   <div>
+    <h1>Filmverwaltung</h1>
+
     <h2>Neuen Film hinzufügen</h2>
 
     <form @submit.prevent="addMovie">
@@ -83,10 +104,19 @@ onMounted(loadMovies)
         v-for="movie in movies"
         :key="movie.id"
       >
-        {{ movie.title }}
-        ({{ movie.genre }})
-        - {{ movie.releaseYear }}
-        - {{ movie.status }}
+        <strong>{{ movie.title }}</strong>
+
+        <span v-if="movie.genre">
+          - {{ movie.genre }}
+        </span>
+
+        <span v-if="movie.releaseYear">
+          ({{ movie.releaseYear }})
+        </span>
+
+        <span v-if="movie.status">
+          - {{ movie.status }}
+        </span>
       </li>
     </ul>
   </div>
@@ -103,7 +133,11 @@ form {
 
 input,
 button {
-  padding: 8px;
+  padding: 10px;
+}
+
+button {
+  cursor: pointer;
 }
 
 ul {
