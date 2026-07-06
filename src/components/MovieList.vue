@@ -1,32 +1,61 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 const movies = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
-const sortOrder = ref('asc')
+const searchTerm = ref('')
+const statusFilter = ref('all')
+const sortOrder = ref('year-asc')
 
 const newMovie = ref({
   title: '',
   genre: '',
   releaseYear: '',
-  status: ''
+  status: 'Watchlist'
 })
 
 const baseUrl = import.meta.env.VITE_BACKEND_BASE_URL
 
-function sortMovies() {
-  movies.value.sort((a, b) => {
-    const yearA = a.releaseYear || 0
-    const yearB = b.releaseYear || 0
+const filteredMovies = computed(() => {
+  let result = [...movies.value]
 
-    if (sortOrder.value === 'asc') {
-      return yearA - yearB
+  if (searchTerm.value.trim()) {
+    result = result.filter(movie =>
+      movie.title.toLowerCase().includes(searchTerm.value.toLowerCase())
+    )
+  }
+
+  if (statusFilter.value !== 'all') {
+    result = result.filter(movie => movie.status === statusFilter.value)
+  }
+
+  result.sort((a, b) => {
+    if (sortOrder.value === 'year-asc') {
+      return (a.releaseYear || 0) - (b.releaseYear || 0)
     }
 
-    return yearB - yearA
+    if (sortOrder.value === 'year-desc') {
+      return (b.releaseYear || 0) - (a.releaseYear || 0)
+    }
+
+    if (sortOrder.value === 'title-asc') {
+      return a.title.localeCompare(b.title)
+    }
+
+    return b.title.localeCompare(a.title)
   })
-}
+
+  return result
+})
+
+const watchedCount = computed(() =>
+  movies.value.filter(movie => movie.status === 'Watched').length
+)
+
+const watchlistCount = computed(() =>
+  movies.value.filter(movie => movie.status === 'Watchlist').length
+)
 
 async function loadMovies() {
   isLoading.value = true
@@ -40,7 +69,6 @@ async function loadMovies() {
     }
 
     movies.value = await response.json()
-    sortMovies()
   } catch (error) {
     console.error(error)
     errorMessage.value = 'Backend nicht erreichbar.'
@@ -72,7 +100,7 @@ async function addMovie() {
       title: '',
       genre: '',
       releaseYear: '',
-      status: ''
+      status: 'Watchlist'
     }
 
     await loadMovies()
@@ -83,6 +111,12 @@ async function addMovie() {
 }
 
 async function deleteMovie(id) {
+  const confirmed = confirm('Möchtest du diesen Film wirklich löschen?')
+
+  if (!confirmed) {
+    return
+  }
+
   try {
     const response = await fetch(`${baseUrl}/movies/${id}`, {
       method: 'DELETE'
@@ -93,7 +127,6 @@ async function deleteMovie(id) {
     }
 
     movies.value = movies.value.filter(movie => movie.id !== id)
-    sortMovies()
   } catch (error) {
     console.error(error)
     errorMessage.value = 'Film konnte nicht gelöscht werden.'
@@ -109,8 +142,25 @@ onMounted(loadMovies)
       <p class="eyebrow">Movie Tracker</p>
       <h1>Filmverwaltung</h1>
       <p class="subtitle">
-        Verwalte deine Filme übersichtlich an einem Ort.
+        Verwalte, suche und sortiere deine Filme übersichtlich an einem Ort.
       </p>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat-card">
+        <span>Gesamt</span>
+        <strong>{{ movies.length }}</strong>
+      </div>
+
+      <div class="stat-card">
+        <span>Watched</span>
+        <strong>{{ watchedCount }}</strong>
+      </div>
+
+      <div class="stat-card">
+        <span>Watchlist</span>
+        <strong>{{ watchlistCount }}</strong>
+      </div>
     </section>
 
     <section class="card">
@@ -126,18 +176,21 @@ onMounted(loadMovies)
         <input
           v-model="newMovie.genre"
           placeholder="Genre"
+          required
         />
 
         <input
           v-model="newMovie.releaseYear"
           type="number"
           placeholder="Erscheinungsjahr"
+          required
         />
 
-        <input
-          v-model="newMovie.status"
-          placeholder="Status, z. B. Watched"
-        />
+        <select v-model="newMovie.status" required>
+          <option value="Watchlist">Watchlist</option>
+          <option value="Watched">Watched</option>
+          <option value="Favorite">Favorite</option>
+        </select>
 
         <button type="submit" class="primary-button">
           Film hinzufügen
@@ -153,33 +206,42 @@ onMounted(loadMovies)
       <div class="list-header">
         <div>
           <h2>Filmliste</h2>
-          <p>{{ movies.length }} gespeicherte Filme</p>
+          <p>{{ filteredMovies.length }} von {{ movies.length }} Filmen angezeigt</p>
         </div>
+      </div>
 
-        <div class="sort-box">
-          <label for="sortOrder">Sortieren</label>
-          <select
-            id="sortOrder"
-            v-model="sortOrder"
-            @change="sortMovies"
-          >
-            <option value="asc">Älteste zuerst</option>
-            <option value="desc">Neueste zuerst</option>
-          </select>
-        </div>
+      <div class="controls">
+        <input
+          v-model="searchTerm"
+          placeholder="Nach Titel suchen..."
+        />
+
+        <select v-model="statusFilter">
+          <option value="all">Alle Status</option>
+          <option value="Watchlist">Watchlist</option>
+          <option value="Watched">Watched</option>
+          <option value="Favorite">Favorite</option>
+        </select>
+
+        <select v-model="sortOrder">
+          <option value="year-asc">Jahr: älteste zuerst</option>
+          <option value="year-desc">Jahr: neueste zuerst</option>
+          <option value="title-asc">Titel: A–Z</option>
+          <option value="title-desc">Titel: Z–A</option>
+        </select>
       </div>
 
       <p v-if="isLoading" class="empty-state">
         Filme werden geladen ...
       </p>
 
-      <p v-else-if="movies.length === 0" class="empty-state">
-        Noch keine Filme vorhanden.
+      <p v-else-if="filteredMovies.length === 0" class="empty-state">
+        Keine passenden Filme gefunden.
       </p>
 
       <ul v-else class="movie-list">
         <li
-          v-for="movie in movies"
+          v-for="movie in filteredMovies"
           :key="movie.id"
           class="movie-item"
         >
@@ -219,7 +281,8 @@ onMounted(loadMovies)
 }
 
 .hero,
-.card {
+.card,
+.stats-grid {
   max-width: 760px;
   margin: 0 auto 24px;
 }
@@ -249,12 +312,40 @@ h1 {
   font-size: 17px;
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.stat-card,
 .card {
-  padding: 28px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid #e5e7eb;
   border-radius: 22px;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.stat-card {
+  padding: 18px;
+}
+
+.stat-card span {
+  display: block;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 30px;
+}
+
+.card {
+  padding: 28px;
 }
 
 h2 {
@@ -263,9 +354,15 @@ h2 {
   color: #0f172a;
 }
 
-.movie-form {
+.movie-form,
+.controls {
   display: grid;
   gap: 14px;
+}
+
+.controls {
+  grid-template-columns: 1.5fr 1fr 1fr;
+  margin-bottom: 18px;
 }
 
 input,
@@ -315,33 +412,9 @@ button {
   font-weight: 600;
 }
 
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
-  margin-bottom: 18px;
-}
-
 .list-header p {
-  margin: -10px 0 0;
+  margin: -10px 0 18px;
   color: #64748b;
-}
-
-.sort-box {
-  min-width: 190px;
-}
-
-.sort-box label {
-  display: block;
-  margin-bottom: 6px;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.sort-box select {
-  padding: 10px 12px;
 }
 
 .empty-state {
@@ -398,7 +471,7 @@ button {
   color: white;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
   h1 {
     font-size: 34px;
   }
@@ -407,14 +480,14 @@ button {
     padding: 22px;
   }
 
-  .list-header,
+  .stats-grid,
+  .controls {
+    grid-template-columns: 1fr;
+  }
+
   .movie-item {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .sort-box {
-    width: 100%;
   }
 
   .delete-button {
