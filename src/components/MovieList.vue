@@ -60,6 +60,23 @@ async function addMovie() {
   }
 }
 
+async function deleteMovie(id) {
+  try {
+    const response = await fetch(`${baseUrl}/movies/${id}`, {
+      method: 'DELETE'
+    })
+
+    if (!response.ok) {
+      throw new Error('Fehler beim Löschen')
+    }
+
+    await loadMovies()
+  } catch (error) {
+    console.error(error)
+    alert('Film konnte nicht gelöscht werden.')
+  }
+}
+
 onMounted(loadMovies)
 </script>
 
@@ -117,6 +134,10 @@ onMounted(loadMovies)
         <span v-if="movie.status">
           - {{ movie.status }}
         </span>
+
+        <button @click="deleteMovie(movie.id)">
+          Löschen
+        </button>
       </li>
     </ul>
   </div>
