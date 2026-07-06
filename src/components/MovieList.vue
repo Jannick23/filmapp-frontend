@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue'
 const movies = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const sortOrder = ref('asc')
 
 const newMovie = ref({
   title: '',
@@ -13,6 +14,19 @@ const newMovie = ref({
 })
 
 const baseUrl = import.meta.env.VITE_BACKEND_BASE_URL
+
+function sortMovies() {
+  movies.value.sort((a, b) => {
+    const yearA = a.releaseYear || 0
+    const yearB = b.releaseYear || 0
+
+    if (sortOrder.value === 'asc') {
+      return yearA - yearB
+    }
+
+    return yearB - yearA
+  })
+}
 
 async function loadMovies() {
   isLoading.value = true
@@ -26,6 +40,7 @@ async function loadMovies() {
     }
 
     movies.value = await response.json()
+    sortMovies()
   } catch (error) {
     console.error(error)
     errorMessage.value = 'Backend nicht erreichbar.'
@@ -78,6 +93,7 @@ async function deleteMovie(id) {
     }
 
     movies.value = movies.value.filter(movie => movie.id !== id)
+    sortMovies()
   } catch (error) {
     console.error(error)
     errorMessage.value = 'Film konnte nicht gelöscht werden.'
@@ -138,6 +154,18 @@ onMounted(loadMovies)
         <div>
           <h2>Filmliste</h2>
           <p>{{ movies.length }} gespeicherte Filme</p>
+        </div>
+
+        <div class="sort-box">
+          <label for="sortOrder">Sortieren</label>
+          <select
+            id="sortOrder"
+            v-model="sortOrder"
+            @change="sortMovies"
+          >
+            <option value="asc">Älteste zuerst</option>
+            <option value="desc">Neueste zuerst</option>
+          </select>
         </div>
       </div>
 
@@ -240,7 +268,8 @@ h2 {
   gap: 14px;
 }
 
-input {
+input,
+select {
   width: 100%;
   box-sizing: border-box;
   padding: 14px 16px;
@@ -251,7 +280,8 @@ input {
   outline: none;
 }
 
-input:focus {
+input:focus,
+select:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
@@ -288,12 +318,30 @@ button {
 .list-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 18px;
 }
 
 .list-header p {
   margin: -10px 0 0;
   color: #64748b;
+}
+
+.sort-box {
+  min-width: 190px;
+}
+
+.sort-box label {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sort-box select {
+  padding: 10px 12px;
 }
 
 .empty-state {
@@ -359,9 +407,14 @@ button {
     padding: 22px;
   }
 
+  .list-header,
   .movie-item {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
+  }
+
+  .sort-box {
+    width: 100%;
   }
 
   .delete-button {
